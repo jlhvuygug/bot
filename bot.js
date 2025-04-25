@@ -15,9 +15,9 @@ let channels = [
 
 // A'zolikni tekshirish funksiyasi
 async function isUserSubscribed(userId) {
-  for (const channel of channels) {
+  for (let channel of channels) {
     try {
-      const member = await bot.getChatMember(channel.username, userId);
+      let member = await bot.getChatMember(channel.username, userId);
       if (member.status === 'left' || member.status === 'kicked') {
         return false;
       }
@@ -28,6 +28,8 @@ async function isUserSubscribed(userId) {
   }
   return true;
 }
+
+
 
 
 bot.on('message', async (msg) => {
@@ -91,6 +93,16 @@ bot.onText(/\/start/, async (msg) => {
     });
   } else {
     bot.sendMessage(chatId, "✅ Xush kelibsiz! Siz barcha kanallarga a’zo bo‘lgansiz.");
+  }
+});
+
+bot.on('chat_member', (msg) => {
+  let status = msg.new_chat_member?.status;
+  let user = msg.new_chat_member?.user;
+  let chat = msg.chat;
+
+  if (status === 'member') {
+    bot.sendMessage(ADMIN_CHAT_ID, `👤 @${user.username || user.first_name} ${chat.title} guruhiga qo'shildi.`);
   }
 });
 
