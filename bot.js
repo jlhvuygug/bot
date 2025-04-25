@@ -9,7 +9,6 @@ bot.on('message', (msg) => {
   const chatId = msg.chat.id;
   const text = msg.text;
 
-  console.log(`Yangi xabar: ${text} (chat ID: ${chatId})`);
 
   bot.sendMessage(chatId, `Salom, siz manga shunday yozdingiz: ${text}`);
 });
