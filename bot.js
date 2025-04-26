@@ -12,143 +12,91 @@ let channels = [
   { name: 'Kanal 3', username: 'kanal3maniki' }
 ];
 
-bot.onText(/\/start/, async (msg) => {
-  let chatId = msg.chat.id;
-  let userId = msg.from.id;
 
-  // ID ni yuborish
-  await bot.sendMessage(chatId, `🆔 Sizning Telegram ID: ${userId}`);
 
-  let subscribed = await isUserSubscribed(userId);
-
-  if (subscribed) {
-    // Azo bo‘lganlar uchun shunchaki xush kelibsiz
-    bot.sendMessage(chatId, "✅ Xush kelibsiz! Siz barcha kanallarga a’zo bo‘lgansiz.");
-    return;
-  }
-
-  // Har bir kanal uchun a'zolar sonini olish
-  let channelsWithCounts = await Promise.all(channels.map(async channel => {
+// ✅ A'zolikni tekshiruvchi funksiya
+async function isUserSubscribed(userId) {
+  for (let channel of channels) {
     try {
-      let chatInfo = await bot.getChatMembersCount(channel.username);
-      return {
-        ...channel,
-        count: chatInfo
-      };
+      let member = await bot.getChatMember(channel.username, userId);
+      if (member.status === 'left' || member.status === 'kicked') return false;
     } catch (err) {
-      return {
-        ...channel,
-        count: 'Noma’lum'
-      };
+      console.log(`❌ ${channel.username} tekshirishda xato: ${err.message}`);
+      return false;
     }
-  }));
+  }
+  return true;
+}
 
-  // Tugmalar
+// 📩 Kanallarga ulanish tugmalari
+function getSubscriptionButtons() {
   let buttons = channels.map(channel => [{
     text: `➕ ${channel.name}`,
     url: `https://t.me/${channel.username.replace('@', '')}`
   }]);
-
   buttons.push([{ text: "✅ Tekshirish", callback_data: "check_subscription" }]);
+  return buttons;
+}
 
-  // Xabar matni
-  let message = `🔒 Iltimos, quyidagi kanallarga a’zo bo‘ling:\n\n` +
-    channelsWithCounts.map(ch =>
-      `🔗 @${ch.username}  — 👥 ${ch.count} a’zo`
-    ).join('\n') +
-    `\n\n✅ A’zo bo‘lgach, pastdagi "Tekshirish" tugmasini bosing.`;
+// 🧾 Kanallar ro'yxati matni
+function getChannelsListText() {
+  return channels.map(ch => `🔗 https://t.me/${ch.username}`).join('\n');
+}
 
-  await bot.sendMessage(chatId, message, {
-    reply_markup: {
-      inline_keyboard: buttons
-    }
-  });
+// 📩 Har qanday xabarni olayotganda
+bot.on('message', async (msg) => {
+  let chatId = msg.chat.id;
+  let userId = msg.from.id;
+
+  if (msg.text && msg.text.startsWith('/start')) return;
+
+  let subscribed = await isUserSubscribed(userId);
+
+  if (!subscribed) {
+    let message = `❗ Iltimos, quyidagi kanallarga a’zo bo‘ling:\n\n${getChannelsListText()}\n\n✅ A’zo bo‘lgach, "Tekshirish" tugmasini bosing.`;
+    return bot.sendMessage(chatId, message, {
+      reply_markup: { inline_keyboard: getSubscriptionButtons() }
+    });
+  }
+
+  bot.sendMessage(chatId, "😊 Sizning xabaringiz qabul qilindi. Bot sizga xizmatga tayyor.");
 });
 
+// /start komandasi
+bot.onText(/\/start/, async (msg) => {
+  let chatId = msg.chat.id;
+  let userId = msg.from.id;
 
-// // ✅ A'zolikni tekshiruvchi funksiya
-// async function isUserSubscribed(userId) {
-//   for (let channel of channels) {
-//     try {
-//       let member = await bot.getChatMember(channel.username, userId);
-//       if (member.status === 'left' || member.status === 'kicked') return false;
-//     } catch (err) {
-//       console.log(`❌ ${channel.username} tekshirishda xato: ${err.message}`);
-//       return false;
-//     }
-//   }
-//   return true;
-// }
+  let subscribed = await isUserSubscribed(userId);
 
-// // 📩 Kanallarga ulanish tugmalari
-// function getSubscriptionButtons() {
-//   let buttons = channels.map(channel => [{
-//     text: `➕ ${channel.name}`,
-//     url: `https://t.me/${channel.username.replace('@', '')}`
-//   }]);
-//   buttons.push([{ text: "✅ Tekshirish", callback_data: "check_subscription" }]);
-//   return buttons;
-// }
+  if (!subscribed) {
+    let message = `🔒 Iltimos, quyidagi kanallarga a’zo bo‘ling:\n\n${getChannelsListText()}\n\n✅ A’zo bo‘lgach, "Tekshirish" tugmasini bosing.`;
+    return bot.sendMessage(chatId, message, {
+      reply_markup: { inline_keyboard: getSubscriptionButtons() }
+    });
+  }
 
-// // 🧾 Kanallar ro'yxati matni
-// function getChannelsListText() {
-//   return channels.map(ch => `🔗 https://t.me/${ch.username}`).join('\n');
-// }
+  bot.sendMessage(chatId, "✅ Xush kelibsiz! Siz barcha kanallarga a’zo bo‘lgansiz.");
+});
 
-// // 📩 Har qanday xabarni olayotganda
-// bot.on('message', async (msg) => {
-//   let chatId = msg.chat.id;
-//   let userId = msg.from.id;
+// ✅ "Tekshirish" tugmasini bosganda
+bot.on('callback_query', async (query) => {
+  let userId = query.from.id;
+  let chatId = query.message.chat.id;
+  let username = query.from.username || `${query.from.first_name} ${query.from.last_name || ''}`;
 
-//   if (msg.text && msg.text.startsWith('/start')) return;
+  let subscribed = await isUserSubscribed(userId);
 
-//   let subscribed = await isUserSubscribed(userId);
+  if (subscribed) {
+    bot.sendMessage(chatId, "🎉 Ajoyib! Siz barcha kanallarga a’zo bo‘lgansiz. Botdan foydalanishingiz mumkin.");
 
-//   if (!subscribed) {
-//     let message = `❗ Iltimos, quyidagi kanallarga a’zo bo‘ling:\n\n${getChannelsListText()}\n\n✅ A’zo bo‘lgach, "Tekshirish" tugmasini bosing.`;
-//     return bot.sendMessage(chatId, message, {
-//       reply_markup: { inline_keyboard: getSubscriptionButtons() }
-//     });
-//   }
+    // Adminga xabar yuborish
+    bot.sendMessage(ADMIN_CHAT_ID, `✅ Yangi a’zo: @${username} (${userId})`);
+  } else {
+    bot.sendMessage(chatId, "❗ Siz hali ham ba'zi kanallarga a’zo emassiz. Iltimos, a'zo bo‘ling va qayta tekshiring.");
+  }
 
-//   bot.sendMessage(chatId, "😊 Sizning xabaringiz qabul qilindi. Bot sizga xizmatga tayyor.");
-// });
+  bot.answerCallbackQuery(query.id);
 
-// // /start komandasi
-// bot.onText(/\/start/, async (msg) => {
-//   let chatId = msg.chat.id;
-//   let userId = msg.from.id;
-
-//   let subscribed = await isUserSubscribed(userId);
-
-//   if (!subscribed) {
-//     let message = `🔒 Iltimos, quyidagi kanallarga a’zo bo‘ling:\n\n${getChannelsListText()}\n\n✅ A’zo bo‘lgach, "Tekshirish" tugmasini bosing.`;
-//     return bot.sendMessage(chatId, message, {
-//       reply_markup: { inline_keyboard: getSubscriptionButtons() }
-//     });
-//   }
-
-//   bot.sendMessage(chatId, "✅ Xush kelibsiz! Siz barcha kanallarga a’zo bo‘lgansiz.");
-// });
-
-// // ✅ "Tekshirish" tugmasini bosganda
-// bot.on('callback_query', async (query) => {
-//   let userId = query.from.id;
-//   let chatId = query.message.chat.id;
-//   let username = query.from.username || `${query.from.first_name} ${query.from.last_name || ''}`;
-
-//   let subscribed = await isUserSubscribed(userId);
-
-//   if (subscribed) {
-//     bot.sendMessage(chatId, "🎉 Ajoyib! Siz barcha kanallarga a’zo bo‘lgansiz. Botdan foydalanishingiz mumkin.");
-
-//     // Adminga xabar yuborish
-//     bot.sendMessage(ADMIN_CHAT_ID, `✅ Yangi a’zo: @${username} (${userId})`);
-//   } else {
-//     bot.sendMessage(chatId, "❗ Siz hali ham ba'zi kanallarga a’zo emassiz. Iltimos, a'zo bo‘ling va qayta tekshiring.");
-//   }
-
-//   bot.answerCallbackQuery(query.id);
-
-// });
+});
 
