@@ -1,61 +1,75 @@
 let TelegramBot = require('node-telegram-bot-api');
 
-let token = '8060564822:AAGh5KAmYdXuoN2_fvidNpKjx3A33dNlJZA';
+const token = '8060564822:AAGh5KAmYdXuoN2_fvidNpKjx3A33dNlJZA';
 const bot = new TelegramBot(token, { polling: true });
 
 // Kanal username'lari
 const channels = [
-  '@elektraudit_uz',  // Kanal 1
-  '@Ilova_vebsayt_intrnet_sayt',  // Kanal 2
-  '@kanal3maniki'   // Kanal 3
+  '@elektraudit_uz', 
+  '@Ilova_vebsayt_intrnet_sayt'
 ];
 
+// Kinolar turgan kanal username'i
+const mainChannel = '@kanal3maniki';  // ❗ o'zingning kinolar turgan kanal username'ini yoz
+
+// A'zolikni tekshiruvchi funksiya
+const checkMembership = async (channel, userId) => {
+  try {
+    const member = await bot.getChatMember(channel, userId);
+    return member.status === 'member' || member.status === 'administrator' || member.status === 'creator';
+  } catch (error) {
+    return false;  // Agar tekshiruvda xatolik bo'lsa, a'zo emas deb hisoblaymiz
+  }
+};
+
+// Message kelganda ishlovchi funksiya
 bot.on('message', async (msg) => {
-  const chatId = msg.chat.id;  // Botga yozgan foydalanuvchining chat ID'si
-  const userId = msg.from.id;  // Foydalanuvchining ID'si
+  const chatId = msg.chat.id;
+  const userId = msg.from.id;
+  const text = msg.text;
 
   try {
-    // Kanalga a'zo bo'lishini tekshiruvchi funksiya
-    const checkMembership = async (channel) => {
-      try {
-        const member = await bot.getChatMember(channel, userId);
-        return member.status === 'member' || member.status === 'administrator' || member.status === 'creator';
-      } catch (error) {
-        return false;  // Agar kanalga ulanishda xatolik yuzaga kelsa, a'zo emas deb hisoblanadi
-      }
-    };
-
-    // A'zo bo'lgan kanallarni tekshirish
+    // 1. Foydalanuvchini kanallarga a'zolik tekshirish
     let notJoinedChannels = [];
     for (let channel of channels) {
-      const isMember = await checkMembership(channel);
+      const isMember = await checkMembership(channel, userId);
       if (!isMember) {
         notJoinedChannels.push(channel);
       }
     }
 
-    // Agar foydalanuvchi barcha kanallarga a'zo bo'lsa
+    // 2. Agar barcha kanallarga a'zo bo'lsa
     if (notJoinedChannels.length === 0) {
-      bot.sendMessage(chatId, "Siz barcha kanallarga a'zo bo'ldingiz!");
-    } else {
-      // Qaysi kanallarga a'zo bo'lmaganligini yuborish
-      let buttons = [];
-      notJoinedChannels.forEach(channel => {
-        // Kanalga havola tugmasi yaratish
-        buttons.push([{ text: `Qo'shiling: ${channel}`, url: `https://t.me/${channel.slice(1)}` }]);
+      // Foydalanuvchi kino kodi yubordimi?
+      if (!isNaN(text)) {
+        try {
+          // Agar text raqam bo'lsa (ya'ni xabar ID)
+          await bot.copyMessage(chatId, mainChannel, text);
+        } catch (err) {
+          console.error(err);
+          bot.sendMessage(chatId, "❌ Kino topilmadi yoki xatolik yuz berdi.");
+        }
+      } else {
+        // Agar boshqa text yozsa
+        bot.sendMessage(chatId, "✅ Siz kanallarga a'zo bo'lgansiz. Kino kodi yuboring (masalan: 5)!");
+      }
+    } 
+    // 3. Agar hali barcha kanallarga a'zo bo'lmagan bo'lsa
+    else {
+      let buttons = notJoinedChannels.map(channel => {
+        return [{ text: `➕ Kanalga qo‘shilish`, url: `https://t.me/${channel.slice(1)}` }];
       });
 
-      // Kanallarni button shaklida yuborish
       const replyMarkup = {
-        keyboard: buttons,
-        one_time_keyboard: true,
-        resize_keyboard: true
+        inline_keyboard: buttons
       };
 
-      bot.sendMessage(chatId, "Siz quyidagi kanallarga qo'shilishingiz kerak:", { reply_markup: replyMarkup });
+      await bot.sendMessage(chatId, "❗ Avval quyidagi kanallarga qo‘shiling:", { reply_markup: replyMarkup });
     }
+
   } catch (error) {
     console.error(error);
     bot.sendMessage(chatId, "❌ Xatolik yuz berdi: " + error.message);
   }
 });
+
