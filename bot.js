@@ -10,13 +10,10 @@ bot.on('message', async (msg) => {
   const userId = msg.from.id;  // Foydalanuvchining ID'si
 
   try {
-    // Kanal adminlarini olish
-    const members = await bot.getChatAdministrators('@elektraudit_uz');
+    // Foydalanuvchi haqida ma'lumot olish (kanalda bormi yoki yo'qmi)
+    const member = await bot.getChatMember('@elektraudit_uz', userId);
     
-    // Adminlar ro'yxatidagi userId ni solishtirib chiqamiz
-    const isInChannel = members.some(member => member.user.id === userId);
-
-    if (isInChannel) {
+    if (member.status === 'member' || member.status === 'administrator' || member.status === 'creator') {
       bot.sendMessage(chatId, "Siz kanalda mavjud ekansiz.");
     } else {
       bot.sendMessage(chatId, "Siz kanalda mavjud emassiz.");
@@ -26,4 +23,6 @@ bot.on('message', async (msg) => {
     bot.sendMessage(chatId, "❌ Xatolik yuz berdi: " + error.message);
   }
 });
+
+
 
