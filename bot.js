@@ -12,20 +12,28 @@ let channels = [
   { name: 'Kanal 3', username: 'kanal3maniki' }
 ];
 
-
-
 // ✅ A'zolikni tekshiruvchi funksiya
 async function isUserSubscribed(userId) {
+  let nonSubscribedChannels = [];
+  let usersInChannels = [];
+
   for (let channel of channels) {
     try {
       let member = await bot.getChatMember(channel.username, userId);
-      if (member.status === 'left' || member.status === 'kicked') return false;
+      if (member.status === 'left' || member.status === 'kicked') {
+        nonSubscribedChannels.push(channel);
+      } else {
+        let channelMembers = await bot.getChatAdministrators(channel.username);
+        let channelUsers = channelMembers.map(admin => admin.user.username || `${admin.user.first_name} ${admin.user.last_name || ''}`);
+        usersInChannels.push({ channel: channel.name, members: channelUsers });
+      }
     } catch (err) {
       console.log(`❌ ${channel.username} tekshirishda xato: ${err.message}`);
-      return false;
+      nonSubscribedChannels.push(channel);
     }
   }
-  return true;
+
+  return { nonSubscribedChannels, usersInChannels };
 }
 
 // 📩 Kanallarga ulanish tugmalari
@@ -50,13 +58,21 @@ bot.on('message', async (msg) => {
 
   if (msg.text && msg.text.startsWith('/start')) return;
 
-  let subscribed = await isUserSubscribed(userId);
+  let { nonSubscribedChannels, usersInChannels } = await isUserSubscribed(userId);
 
-  if (!subscribed) {
+  if (nonSubscribedChannels.length > 0) {
     let message = `❗ Iltimos, quyidagi kanallarga a’zo bo‘ling:\n\n${getChannelsListText()}\n\n✅ A’zo bo‘lgach, "Tekshirish" tugmasini bosing.`;
     return bot.sendMessage(chatId, message, {
       reply_markup: { inline_keyboard: getSubscriptionButtons() }
     });
+  }
+
+  if (usersInChannels.length > 0) {
+    let message = "Siz allaqachon quyidagi kanallarga a'zo bo'lgansiz:\n";
+    usersInChannels.forEach(channelInfo => {
+      message += `\n🔹 ${channelInfo.channel} - A'zolar:\n${channelInfo.members.join(', ')}`;
+    });
+    return bot.sendMessage(chatId, message);
   }
 
   bot.sendMessage(chatId, "😊 Sizning xabaringiz qabul qilindi. Bot sizga xizmatga tayyor.");
@@ -67,13 +83,21 @@ bot.onText(/\/start/, async (msg) => {
   let chatId = msg.chat.id;
   let userId = msg.from.id;
 
-  let subscribed = await isUserSubscribed(userId);
+  let { nonSubscribedChannels, usersInChannels } = await isUserSubscribed(userId);
 
-  if (!subscribed) {
+  if (nonSubscribedChannels.length > 0) {
     let message = `🔒 Iltimos, quyidagi kanallarga a’zo bo‘ling:\n\n${getChannelsListText()}\n\n✅ A’zo bo‘lgach, "Tekshirish" tugmasini bosing.`;
     return bot.sendMessage(chatId, message, {
       reply_markup: { inline_keyboard: getSubscriptionButtons() }
     });
+  }
+
+  if (usersInChannels.length > 0) {
+    let message = "Siz allaqachon quyidagi kanallarga a'zo bo'lgansiz:\n";
+    usersInChannels.forEach(channelInfo => {
+      message += `\n🔹 ${channelInfo.channel} - A'zolar:\n${channelInfo.members.join(', ')}`;
+    });
+    return bot.sendMessage(chatId, message);
   }
 
   bot.sendMessage(chatId, "✅ Xush kelibsiz! Siz barcha kanallarga a’zo bo‘lgansiz.");
@@ -85,18 +109,26 @@ bot.on('callback_query', async (query) => {
   let chatId = query.message.chat.id;
   let username = query.from.username || `${query.from.first_name} ${query.from.last_name || ''}`;
 
-  let subscribed = await isUserSubscribed(userId);
+  let { nonSubscribedChannels, usersInChannels } = await isUserSubscribed(userId);
 
-  if (subscribed) {
+  if (nonSubscribedChannels.length === 0) {
     bot.sendMessage(chatId, "🎉 Ajoyib! Siz barcha kanallarga a’zo bo‘lgansiz. Botdan foydalanishingiz mumkin.");
 
     // Adminga xabar yuborish
     bot.sendMessage(ADMIN_CHAT_ID, `✅ Yangi a’zo: @${username} (${userId})`);
   } else {
-    bot.sendMessage(chatId, "❗ Siz hali ham ba'zi kanallarga a’zo emassiz. Iltimos, a'zo bo‘ling va qayta tekshiring.");
+    let message = "❗ Siz hali ham ba'zi kanallarga a’zo emassiz. Iltimos, a'zo bo‘ling va qayta tekshiring.\n\n";
+    message += getChannelsListText();
+    bot.sendMessage(chatId, message);
+  }
+
+  if (usersInChannels.length > 0) {
+    let message = "Siz allaqachon quyidagi kanallarga a'zo bo'lgansiz:\n";
+    usersInChannels.forEach(channelInfo => {
+      message += `\n🔹 ${channelInfo.channel} - A'zolar:\n${channelInfo.members.join(', ')}`;
+    });
+    bot.sendMessage(chatId, message);
   }
 
   bot.answerCallbackQuery(query.id);
-
 });
-
