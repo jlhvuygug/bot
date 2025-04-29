@@ -38,7 +38,7 @@ bot.on('message', async (msg) => {
   if (awaitingSuggestions.has(userId)) {
     awaitingSuggestions.delete(userId);
     bot.sendMessage(adminId, `📩 Yangi taklif:\n\n👤 ${msg.from.first_name} (@${msg.from.username || 'yo‘q'})\n📝 ${text}`);
-    bot.sendMessage(chatId, "✅ Taklifingiz muvaffaqiyatli yuborildi! Rahmat.");
+    bot.sendMessage(chatId, `✅ Taklifingiz muvaffaqiyatli yuborildi! Rahmat.  ${userId}`);
     return;
   }
 
@@ -79,25 +79,25 @@ bot.on('message', async (msg) => {
 
 // ... yuqoridagi kod o'zgarmagan holda davom etadi
 
-// Message handler
-bot.on('message', async (msg) => {
-  const chatId = msg.chat.id;
-  const userId = msg.from.id;
-  const text = msg.text;
+// // Message handler
+// bot.on('message', async (msg) => {
+//   const chatId = msg.chat.id;
+//   const userId = msg.from.id;
+//   const text = msg.text;
 
-  // Agar foydalanuvchi taklif yuborayotgan bo‘lsa
-  if (awaitingSuggestions.has(userId)) {
-    awaitingSuggestions.delete(userId);
+//   // Agar foydalanuvchi taklif yuborayotgan bo‘lsa
+//   if (awaitingSuggestions.has(userId)) {
+//     awaitingSuggestions.delete(userId);
 
-    const replyText = `📩 Sizning taklifingiz:\n\n🆔 ID: ${userId}\n📝 Matn: ${text}`;
-    bot.sendMessage(chatId, replyText);
+//     const replyText = `📩 Sizning taklifingiz:\n\n🆔 ID: ${userId}\n📝 Matn: ${text}`;
+//     bot.sendMessage(chatId, replyText);
 
-    return;
-  }
+//     return;
+//   }
 
-  // A'zolik tekshiruv va savollar qismini shu yerda davom ettirasiz
-  // ...
-});
+//   // A'zolik tekshiruv va savollar qismini shu yerda davom ettirasiz
+//   // ...
+// });
 
 
 // Callback handler
